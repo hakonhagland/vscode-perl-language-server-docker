@@ -3,7 +3,7 @@ ROOT := $(shell pwd)
 .PHONY: build run run-vscode
 
 USERNAME := dockeruser
-TAG_NAME := ubuntu-vscode
+TAG_NAME := ubuntu-vscode-perl
 
 build:
 	@echo "Building Docker image..."
@@ -15,9 +15,18 @@ build:
 run:
 	@echo "Running Docker container..."
 	@mkdir -p $(ROOT)/share
-	@docker run --user $(shell id -u):$(shell id -g) \
+	@if command -v xhost >/dev/null 2>&1; then \
+		xhost +local:docker; \
+		docker run --user $(shell id -u):$(shell id -g) \
 	            -v $(ROOT)/share:/home/$(USERNAME)/share \
-	            -it --rm $(TAG_NAME)
+		        -v /tmp/.X11-unix:/tmp/.X11-unix \
+		        -e DISPLAY=$(DISPLAY) \
+	            -it --rm $(TAG_NAME); \
+		xhost -local:docker; \
+	else \
+		echo "xhost command not found. Please ensure X11 is set up correctly."; \
+		exit 1; \
+	fi
 
 # NOTE: Running VSCode in Docker container requires X11 server to be running on host machine.
 #       If you are using Windows, you can use Xming or VcXsrv.
@@ -37,21 +46,6 @@ run-vscode:
 		           -e DISPLAY=$(DISPLAY) \
 		           -it --rm $(TAG_NAME) code --verbose --no-sandbox /home/$(USERNAME)/share > /dev/null 2>&1; \
 		xhost -local:docker; \
-	else \
-		echo "xhost command not found. Please ensure X11 is set up correctly."; \
-		exit 1; \
-	fi
-
-run-xeyes:
-	@echo "Running Docker container with xeyes..."
-	@if command -v xhost >/dev/null 2>&1; then \
-	    mkdir -p $(ROOT)/share; \
-		xhost +; \
-		docker run --user $(shell id -u):$(shell id -g) \
-		           -v /tmp/.X11-unix:/tmp/.X11-unix \
-		           -e DISPLAY=$(DISPLAY) \
-		           -it --rm $(TAG_NAME) xeyes; \
-		xhost -; \
 	else \
 		echo "xhost command not found. Please ensure X11 is set up correctly."; \
 		exit 1; \
